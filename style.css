@@ -1,0 +1,252 @@
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f3f7f2;
+    color: #24352a;
+}
+
+header {
+    background: #245c3a;
+    color: white;
+    text-align: center;
+    padding: 35px 20px;
+}
+
+header h1 {
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+main {
+    max-width: 700px;
+    margin: 35px auto;
+    padding: 0 18px;
+}
+
+.upload-card {
+    background: white;
+    padding: 28px;
+    border-radius: 16px;
+    box-shadow: 0 5px 20px #00000010;
+}
+
+input[type="file"] {
+    display: block;
+    width: 100%;
+    margin: 20px 0;
+}
+
+#previewContainer {
+    min-height: 180px;
+    border: 2px dashed #b7cbb9;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 15px;
+    overflow: hidden;
+    color: #657568;
+}
+
+#previewContainer img {
+    max-width: 100%;
+    max-height: 350px;
+    object-fit: contain;
+}
+
+button {
+    width: 100%;
+    margin-top: 20px;
+    padding: 13px;
+    border: none;
+    border-radius: 8px;
+    background: #245c3a;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+button:disabled {
+    background: #9aa99d;
+    cursor: not-allowed;
+}
+
+#status {
+    color: #657568;
+    font-size: 14px;
+}
+.hidden {
+    display: none;
+}
+
+.result-panel {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #dfe8df;
+}
+
+.badge {
+    background: #f2b705;
+    color: #3d2e00;
+    font-size: 12px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    vertical-align: middle;
+}
+
+#countList {
+    padding-left: 20px;
+}
+
+#detailTable {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 12px;
+    font-size: 14px;
+}
+
+#detailTable th,
+#detailTable td {
+    text-align: left;
+    padding: 8px;
+    border-bottom: 1px solid #e3ebe3;
+}
+#previewContainer {
+    position: relative;
+}
+
+.detection-box {
+    position: absolute;
+    border: 3px solid;
+    pointer-events: none;
+}
+
+.detection-label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    color: white;
+    font-size: 12px;
+    padding: 2px 6px;
+}
+.badge-model {
+    background: #cfe8d5;
+    color: #1b4d2b;
+}
+.tabs {
+    max-width: 700px;
+    margin: 25px auto 0;
+    padding: 0 18px;
+    display: flex;
+    gap: 8px;
+}
+
+.tab-btn {
+    width: auto;
+    margin-top: 0;
+    padding: 10px 18px;
+    background: #dfe8df;
+    color: #24352a;
+    font-size: 15px;
+}
+
+.tab-btn.active {
+    background: #245c3a;
+    color: white;
+}
+.camera-box {
+    position: relative;
+    background: #000;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-top: 20px;
+    min-height: 180px;
+}
+
+#cameraVideo {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+#cameraOverlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.slider-row {
+    display: block;
+    margin-top: 18px;
+    font-size: 14px;
+}
+
+.slider-row input {
+    width: 100%;
+    margin-top: 8px;
+}
+
+#cameraStatus,
+#cameraCounts {
+    color: #657568;
+    font-size: 14px;
+}
+/* ===== Tampilan HP (layar kecil) ===== */
+@media (max-width: 600px) {
+    header {
+        padding: 22px 14px;
+    }
+
+    header h1 {
+        font-size: 22px;
+    }
+
+    .tabs {
+        padding: 0 12px;
+        margin-top: 16px;
+    }
+
+    .tab-btn {
+        flex: 1;
+        padding: 10px 6px;
+        font-size: 14px;
+        white-space: nowrap;
+    }
+
+    main {
+        margin: 18px auto;
+        padding: 0 12px;
+    }
+
+    .upload-card {
+        padding: 18px;
+    }
+
+    #previewContainer img {
+        max-height: 260px;
+    }
+
+    #detailTable {
+        display: block;
+        overflow-x: auto;
+        font-size: 13px;
+    }
+
+    .detection-label {
+        font-size: 10px;
+        padding: 1px 4px;
+    }
+}
+
+/* ===== Tampilan desktop lebar ===== */
+@media (min-width: 900px) {
+    main,
+    .tabs {
+        max-width: 860px;
+    }
+}

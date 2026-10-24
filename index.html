@@ -1,0 +1,72 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tomato AI Detection</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>🍅 Tomato AI Detection</h1>
+        <p>Deteksi kematangan dan kebusukan tomat dengan AI</p>
+    </header>
+    <nav class="tabs">
+        <button class="tab-btn active" data-target="tab-upload">Upload Gambar</button>
+        <button class="tab-btn" data-target="tab-camera">Kamera</button>
+        <button class="tab-btn" data-target="tab-dashboard">Dashboard</button>
+    </nav>
+    <main>
+        <section class="upload-card tab-panel" id="tab-upload">
+            <h2>Deteksi Kondisi Tomat</h2>
+            <p>Upload gambar tomat untuk memulai.</p>
+
+            <input type="file" id="imageInput" accept="image/png,image/jpeg">
+            <div id="previewContainer">
+                <p>Pratinjau gambar akan muncul di sini.</p>
+            </div>
+
+            <button id="detectButton" disabled>Deteksi Tomat</button>
+            <p id="status">Model AI belum diintegrasikan.</p>
+            <div id="resultPanel" class="result-panel hidden">
+                <h3>Hasil Deteksi <span class="badge" id="modeBadge">DUMMY</span></h3>
+                <p id="totalText"></p>
+                <ul id="countList"></ul>
+                <table id="detailTable">
+                    <thead>
+                    <tr><th>#</th><th>Kelas</th><th>Keyakinan klasifikasi</th><th>Keyakinan deteksi</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+        
+        <section class="upload-card tab-panel hidden" id="tab-camera">
+            <h2>Deteksi dengan Kamera</h2>
+            <p>Arahkan kamera ke tomat. Hasil deteksi tampil langsung di atas video.</p>
+
+            <div class="camera-box">
+                <video id="cameraVideo" autoplay playsinline muted></video>
+                <div id="cameraOverlay"></div>
+            </div>
+
+            <label class="slider-row">
+                Ambang deteksi: <strong><span id="confValue">60</span>%</strong>
+                <input type="range" id="confSlider" min="10" max="95" value="60">
+            </label>
+
+            <button id="cameraButton">Mulai Kamera</button>
+            <p id="cameraStatus">Kamera belum aktif.</p>
+            <p id="cameraCounts"></p>
+        </section>
+
+        <section class="upload-card tab-panel hidden" id="tab-dashboard">
+            <h2>Dashboard</h2>
+            <p>Ringkasan dan riwayat hasil deteksi akan tampil di sini.</p>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
