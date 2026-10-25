@@ -405,6 +405,7 @@ detectButton.addEventListener("click", async function () {
         showResults(result);
         lastResult = result;
         drawBoxes(result);
+        addHistoryRecord("upload", result);
 
         statusText.textContent =
             "Selesai. Model mendeteksi " + result.detections.length +
@@ -480,6 +481,8 @@ async function cameraLoop() {
             }
 
             drawCameraBoxes(result);
+               lastCameraResult = result;
+               saveFrameButton.disabled = false;
             const ms = Math.round(performance.now() - started);
             cameraStatus.textContent =
                 "Kamera aktif | " + ms + " ms per frame (sekitar " +
@@ -525,6 +528,8 @@ async function startCamera() {
 
 function stopCamera() {
     cameraRunning = false;
+       lastCameraResult = null;
+       saveFrameButton.disabled = true;
 
     if (cameraStream) {
         cameraStream.getTracks().forEach(function (track) {
@@ -566,3 +571,232 @@ tabButtons.forEach(function (button) {
         }
     });
 });
+// ===== Riwayat (disimpan di localStorage) =====
+const HISTORY_KEY = "tomato_history_v1";
+const MAX_HISTORY = 200;
+
+const historyEmpty = document.getElementById("historyEmpty");
+const historyTable = document.getElementById("historyTable");
+const historyBody = historyTable.querySelector("tbody");
+const clearHistoryButton = document.getElementById("clearHistoryButton");
+const saveFrameButton = document.getElementById("saveFrameButton");
+
+let lastCameraResult = null;
+
+function loadHistory() {
+    try {
+        const raw = localStorage.getItem(HISTORY_KEY);
+        const list = raw ? JSON.parse(raw) : [];
+        return Array.isArray(list) ? list : [];
+    } catch (error) {
+        return [];
+    }
+}
+
+function saveHistory(list) {
+    try {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+        return true;
+    } catch (error) {
+        console.error(error);
+        return false;
+    }
+}
+
+function addHistoryRecord(source, result) {
+    const counts = { healthy: 0, reject: 0, ripe: 0, unripe: 0 };
+    result.detections.forEach(function (item) {
+        const key = item.label.toLowerCase();
+        counts[key] = (counts[key] || 0) + 1;
+    });
+
+    const list = loadHistory();
+    list.unshift({
+        id: Date.now(),
+        time: new Date().toISOString(),
+        source: source,
+        total: result.detections.length,
+        counts: counts
+    });
+
+    if (list.length > MAX_HISTORY) {
+        list.length = MAX_HISTORY;
+    }
+
+    const saved = saveHistory(list);
+    renderHistory();
+    return saved;
+}
+
+function renderHistory() {
+    const list = loadHistory();
+    historyBody.replaceChildren();
+    renderSummary(list);
+
+    if (list.length === 0) {
+        historyEmpty.classList.remove("hidden");
+        historyTable.classList.add("hidden");
+        clearHistoryButton.classList.add("hidden");
+        return;
+    }
+
+    historyEmpty.classList.add("hidden");
+    historyTable.classList.remove("hidden");
+    clearHistoryButton.classList.remove("hidden");
+
+    list.forEach(function (record) {
+        const row = document.createElement("tr");
+        const counts = record.counts || {};
+        const values = [
+            new Date(record.time).toLocaleString("id-ID"),
+            record.source,
+            record.total,
+            counts.healthy || 0,
+            counts.reject || 0,
+            counts.ripe || 0,
+            counts.unripe || 0
+        ];
+        values.forEach(function (value) {
+            const cell = document.createElement("td");
+            cell.textContent = value;
+            row.appendChild(cell);
+        });
+        historyBody.appendChild(row);
+    });
+}
+
+clearHistoryButton.addEventListener("click", function () {
+    if (confirm("Hapus semua riwayat deteksi?")) {
+        try {
+            localStorage.removeItem(HISTORY_KEY);
+        } catch (error) {
+            console.error(error);
+        }
+        renderHistory();
+    }
+});
+
+saveFrameButton.addEventListener("click", function () {
+    if (!lastCameraResult) {
+        return;
+    }
+    const saved = addHistoryRecord("kamera", lastCameraResult);
+    saveFrameButton.textContent = saved ? "Tersimpan ✓" : "Gagal menyimpan";
+    setTimeout(function () {
+        saveFrameButton.textContent = "Simpan Hasil Frame Ini";
+    }, 1500);
+});
+// ===== Ringkasan, grafik, dan ekspor CSV =====
+const summaryCards = document.getElementById("summaryCards");
+const chartBox = document.getElementById("chartBox");
+const classChart = document.getElementById("classChart");
+const exportCsvButton = document.getElementById("exportCsvButton");
+const sumSessions = document.getElementById("sumSessions");
+const sumTomatoes = document.getElementById("sumTomatoes");
+const sumTop = document.getElementById("sumTop");
+const sumAvg = document.getElementById("sumAvg");
+
+function renderSummary(list) {
+    if (list.length === 0) {
+        summaryCards.classList.add("hidden");
+        chartBox.classList.add("hidden");
+        exportCsvButton.classList.add("hidden");
+        return;
+    }
+
+    const totals = { healthy: 0, reject: 0, ripe: 0, unripe: 0 };
+    let totalTomatoes = 0;
+
+    list.forEach(function (record) {
+        totalTomatoes += record.total || 0;
+        const counts = record.counts || {};
+        for (const key in totals) {
+            totals[key] += counts[key] || 0;
+        }
+    });
+
+    let topLabel = "-";
+    let topValue = 0;
+    for (const key in totals) {
+        if (totals[key] > topValue) {
+            topValue = totals[key];
+            topLabel = key;
+        }
+    }
+
+    sumSessions.textContent = list.length;
+    sumTomatoes.textContent = totalTomatoes;
+    sumTop.textContent = topLabel;
+    sumAvg.textContent = (totalTomatoes / list.length).toFixed(1);
+
+    classChart.replaceChildren();
+    const maxValue = Math.max(1, ...Object.values(totals));
+
+    for (const key in totals) {
+        const row = document.createElement("div");
+        row.className = "chart-row";
+
+        const name = document.createElement("span");
+        name.className = "chart-name";
+        name.textContent = key;
+
+        const track = document.createElement("div");
+        track.className = "chart-track";
+
+        const bar = document.createElement("div");
+        bar.className = "chart-bar";
+        bar.style.width = (totals[key] / maxValue * 100) + "%";
+        bar.style.background = BOX_COLORS[key];
+        track.appendChild(bar);
+
+        const count = document.createElement("span");
+        count.className = "chart-count";
+        count.textContent = totals[key];
+
+        row.appendChild(name);
+        row.appendChild(track);
+        row.appendChild(count);
+        classChart.appendChild(row);
+    }
+
+    summaryCards.classList.remove("hidden");
+    chartBox.classList.remove("hidden");
+    exportCsvButton.classList.remove("hidden");
+}
+
+function exportCsv() {
+    const list = loadHistory();
+    if (list.length === 0) {
+        return;
+    }
+
+    const header = ["waktu", "sumber", "total", "healthy", "reject", "ripe", "unripe"];
+    const rows = list.map(function (record) {
+        const c = record.counts || {};
+        return [
+            record.time,
+            record.source,
+            record.total,
+            c.healthy || 0,
+            c.reject || 0,
+            c.ripe || 0,
+            c.unripe || 0
+        ].join(",");
+    });
+
+    const csv = "\uFEFF" + [header.join(",")].concat(rows).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "riwayat_deteksi_tomat.csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+}
+
+exportCsvButton.addEventListener("click", exportCsv);
+
+renderHistory();

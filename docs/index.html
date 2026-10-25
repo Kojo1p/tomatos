@@ -60,13 +60,57 @@
             </label>
 
             <button id="cameraButton">Mulai Kamera</button>
+            <button id="saveFrameButton" class="secondary-btn" disabled>Simpan Hasil Frame Ini</button>
             <p id="cameraStatus">Kamera belum aktif.</p>
             <p id="cameraCounts"></p>
         </section>
 
         <section class="upload-card tab-panel hidden" id="tab-dashboard">
             <h2>Dashboard</h2>
-            <p>Ringkasan dan riwayat hasil deteksi akan tampil di sini.</p>
+            <p>Riwayat hasil deteksi tersimpan di perangkat ini (browser).</p>
+
+            <p id="historyEmpty" class="history-empty">
+                Belum ada riwayat. Lakukan deteksi dulu di tab Upload atau Kamera.
+            </p>
+
+            <div id="summaryCards" class="summary-grid hidden">
+                <div class="summary-card">
+                    <span class="summary-value" id="sumSessions">0</span>
+                    <span class="summary-label">Total sesi deteksi</span>
+                </div>
+                <div class="summary-card">
+                    <span class="summary-value" id="sumTomatoes">0</span>
+                    <span class="summary-label">Total tomat terdeteksi</span>
+                </div>
+                <div class="summary-card">
+                    <span class="summary-value" id="sumTop">-</span>
+                    <span class="summary-label">Kelas terbanyak</span>
+                </div>
+                <div class="summary-card">
+                    <span class="summary-value" id="sumAvg">0</span>
+                    <span class="summary-label">Rata-rata tomat per sesi</span>
+                </div>
+            </div>
+
+            <div id="chartBox" class="chart-box hidden">
+                <h3>Distribusi Kelas</h3>
+                <div id="classChart"></div>
+            </div>
+
+            <div class="table-wrap">
+                <table id="historyTable" class="hidden">
+                    <thead>
+                        <tr>
+                            <th>Waktu</th><th>Sumber</th><th>Total</th>
+                            <th>Healthy</th><th>Reject</th><th>Ripe</th><th>Unripe</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <button id="exportCsvButton" class="secondary-btn hidden">Unduh Riwayat (CSV)</button>
+            <button id="clearHistoryButton" class="danger-btn hidden">Hapus Semua Riwayat</button>
         </section>
     </main>
 
