@@ -480,7 +480,11 @@ async function cameraLoop() {
                 break;
             }
 
-            drawCameraBoxes(result);
+            if (countToggle.checked) {
+                processCounting(result);
+            } else {
+                drawCameraBoxes(result);
+            }
                lastCameraResult = result;
                saveFrameButton.disabled = false;
             const ms = Math.round(performance.now() - started);
@@ -519,6 +523,7 @@ async function startCamera() {
 
     cameraVideo.srcObject = cameraStream;
     cameraRunning = true;
+    resetCounting();
     cameraButton.textContent = "Hentikan Kamera";
     cameraButton.disabled = false;
     cameraStatus.textContent =
@@ -539,6 +544,9 @@ function stopCamera() {
     }
 
     cameraVideo.srcObject = null;
+    cameraVideo.pause();
+    cameraVideo.removeAttribute("src");
+    cameraVideo.load();
     cameraOverlay.replaceChildren();
     cameraCounts.textContent = "";
     cameraButton.textContent = "Mulai Kamera";
@@ -800,3 +808,289 @@ function exportCsv() {
 exportCsvButton.addEventListener("click", exportCsv);
 
 renderHistory();
+// ===== Pelacakan dan penghitungan lewat garis =====
+const MAX_MISSED = 8;           // tomat boleh hilang berapa frame sebelum pelacakannya dibuang
+const MIN_HITS = 3;             // minimal terlihat di berapa frame sebelum boleh dihitung
+const MIN_DRAW_HITS = 2;        // minimal terlihat sebelum kotaknya digambar
+const FILE_PLAYBACK_RATE = 0.5; // kecepatan putar file video (0.5 = setengah kecepatan)
+
+const countToggle = document.getElementById("countToggle");
+const countControls = document.getElementById("countControls");
+const lineSlider = document.getElementById("lineSlider");
+const lineText = document.getElementById("lineText");
+const axisSelect = document.getElementById("axisSelect");
+const countTotal = document.getElementById("countTotal");
+const countDetail = document.getElementById("countDetail");
+const resetCountButton = document.getElementById("resetCountButton");
+const saveCountButton = document.getElementById("saveCountButton");
+const videoFileInput = document.getElementById("videoFileInput");
+
+let tracks = [];
+let nextTrackId = 1;
+let countedTotal = 0;
+let countedByClass = { healthy: 0, reject: 0, ripe: 0, unripe: 0 };
+
+function centerOf(box) {
+    return [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2];
+}
+
+function boxIou(a, b) {
+    const x1 = Math.max(a[0], b[0]);
+    const y1 = Math.max(a[1], b[1]);
+    const x2 = Math.min(a[2], b[2]);
+    const y2 = Math.min(a[3], b[3]);
+    const inter = Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
+    const areaA = (a[2] - a[0]) * (a[3] - a[1]);
+    const areaB = (b[2] - b[0]) * (b[3] - b[1]);
+    return inter / (areaA + areaB - inter + 1e-9);
+}
+
+function topLabel(track) {
+    let best = null;
+    let bestValue = -1;
+    for (const label in track.votes) {
+        if (track.votes[label] > bestValue) {
+            best = label;
+            bestValue = track.votes[label];
+        }
+    }
+    return best;
+}
+
+function resetCounting() {
+    tracks = [];
+    nextTrackId = 1;
+    countedTotal = 0;
+    countedByClass = { healthy: 0, reject: 0, ripe: 0, unripe: 0 };
+    updateCountPanel();
+}
+
+function updateCountPanel() {
+    countTotal.textContent = countedTotal;
+    countDetail.textContent =
+        "healthy: " + countedByClass.healthy +
+        " · reject: " + countedByClass.reject +
+        " · ripe: " + countedByClass.ripe +
+        " · unripe: " + countedByClass.unripe;
+}
+
+// Mencocokkan kotak baru dengan trek lama (berdasarkan tumpang-tindih dan jarak)
+function updateTracks(detections) {
+    const pairs = [];
+
+    tracks.forEach(function (track, ti) {
+        const tc = centerOf(track.box);
+        const size = Math.max(
+            track.box[2] - track.box[0],
+            track.box[3] - track.box[1],
+            1
+        );
+
+        detections.forEach(function (det, di) {
+            const dc = centerOf(det.box);
+            const iouValue = boxIou(track.box, det.box);
+            const dist = Math.hypot(tc[0] - dc[0], tc[1] - dc[1]) / size;
+
+            if (iouValue > 0.1 || dist < 0.8) {
+                pairs.push({ ti: ti, di: di, iou: iouValue, dist: dist });
+            }
+        });
+    });
+
+    pairs.sort(function (p, q) {
+        return (q.iou - p.iou) || (p.dist - q.dist);
+    });
+
+    const usedTracks = new Set();
+    const usedDetections = new Set();
+
+    pairs.forEach(function (pair) {
+        if (usedTracks.has(pair.ti) || usedDetections.has(pair.di)) {
+            return;
+        }
+        usedTracks.add(pair.ti);
+        usedDetections.add(pair.di);
+
+        const track = tracks[pair.ti];
+        const det = detections[pair.di];
+
+        track.prev = centerOf(track.box);
+        track.box = det.box;
+        track.missed = 0;
+        track.hits += 1;
+        track.votes[det.label] = (track.votes[det.label] || 0) + det.confidence;
+    });
+
+    tracks.forEach(function (track, ti) {
+        if (!usedTracks.has(ti)) {
+            track.missed += 1;
+        }
+    });
+
+    detections.forEach(function (det, di) {
+        if (usedDetections.has(di)) {
+            return;
+        }
+        const votes = {};
+        votes[det.label] = det.confidence;
+        tracks.push({
+            id: nextTrackId++,
+            box: det.box,
+            prev: centerOf(det.box),
+            hits: 1,
+            missed: 0,
+            votes: votes,
+            crossed: false,
+            counted: false
+        });
+    });
+
+    tracks = tracks.filter(function (track) {
+        return track.missed <= MAX_MISSED;
+    });
+}
+
+function drawCountingOverlay(result) {
+    cameraOverlay.replaceChildren();
+
+    const axis = axisSelect.value;
+    const fraction = lineSlider.value / 100;
+
+    const line = document.createElement("div");
+    line.className = "count-line " + (axis === "y" ? "count-line-h" : "count-line-v");
+    if (axis === "y") {
+        line.style.top = (fraction * 100) + "%";
+    } else {
+        line.style.left = (fraction * 100) + "%";
+    }
+    cameraOverlay.appendChild(line);
+
+    let visible = 0;
+
+    tracks.forEach(function (track) {
+        if (track.missed > 0 || track.hits < MIN_DRAW_HITS) {
+            return;
+        }
+        visible += 1;
+
+        const [x1, y1, x2, y2] = track.box;
+        const label = topLabel(track);
+        const color = BOX_COLORS[label.toLowerCase()] || "#6c757d";
+
+        const box = document.createElement("div");
+        box.className = "detection-box";
+        box.style.left = (x1 / result.image_width * 100) + "%";
+        box.style.top = (y1 / result.image_height * 100) + "%";
+        box.style.width = ((x2 - x1) / result.image_width * 100) + "%";
+        box.style.height = ((y2 - y1) / result.image_height * 100) + "%";
+        box.style.borderColor = color;
+
+        const tag = document.createElement("span");
+        tag.className = "detection-label";
+        tag.style.background = color;
+        tag.textContent = "#" + track.id + " " + label + (track.counted ? " ✓" : "");
+
+        box.appendChild(tag);
+        cameraOverlay.appendChild(box);
+    });
+
+    cameraCounts.textContent = "Terlacak di frame ini: " + visible;
+}
+
+function processCounting(result) {
+    updateTracks(result.detections);
+
+    const axis = axisSelect.value;
+    const size = axis === "y" ? result.image_height : result.image_width;
+    const linePos = (lineSlider.value / 100) * size;
+    const index = axis === "y" ? 1 : 0;
+
+    tracks.forEach(function (track) {
+        if (track.missed === 0 && !track.crossed) {
+            const prevValue = track.prev[index];
+            const currentValue = centerOf(track.box)[index];
+
+            if ((prevValue < linePos && currentValue >= linePos) ||
+                (prevValue > linePos && currentValue <= linePos)) {
+                track.crossed = true;
+            }
+        }
+
+        if (track.crossed && !track.counted && track.hits >= MIN_HITS) {
+            const label = topLabel(track).toLowerCase();
+            countedTotal += 1;
+            countedByClass[label] = (countedByClass[label] || 0) + 1;
+            track.counted = true;
+        }
+    });
+
+    updateCountPanel();
+    drawCountingOverlay(result);
+}
+
+countToggle.addEventListener("change", function () {
+    countControls.classList.toggle("hidden", !countToggle.checked);
+    resetCounting();
+    cameraOverlay.replaceChildren();
+});
+
+lineSlider.addEventListener("input", function () {
+    lineText.textContent = lineSlider.value;
+});
+
+resetCountButton.addEventListener("click", resetCounting);
+
+saveCountButton.addEventListener("click", function () {
+    const pseudoResult = { detections: [] };
+    for (const label in countedByClass) {
+        for (let i = 0; i < countedByClass[label]; i++) {
+            pseudoResult.detections.push({ label: label });
+        }
+    }
+
+    const saved = addHistoryRecord("hitung", pseudoResult);
+    saveCountButton.textContent = saved ? "Tersimpan ✓" : "Gagal menyimpan";
+    setTimeout(function () {
+        saveCountButton.textContent = "Simpan Hitungan ke Riwayat";
+    }, 1500);
+});
+
+// ===== Memutar file video =====
+videoFileInput.addEventListener("change", async function () {
+    const file = videoFileInput.files[0];
+    videoFileInput.value = "";
+
+    if (!file) {
+        return;
+    }
+
+    if (cameraRunning) {
+        stopCamera();
+    }
+
+    cameraVideo.srcObject = null;
+    cameraVideo.src = URL.createObjectURL(file);
+    cameraVideo.muted = true;
+    cameraVideo.playbackRate = FILE_PLAYBACK_RATE;
+
+    try {
+        await cameraVideo.play();
+    } catch (error) {
+        cameraStatus.textContent = "Video tidak bisa diputar: " + error.message;
+        return;
+    }
+
+    resetCounting();
+    cameraRunning = true;
+    cameraButton.textContent = "Hentikan";
+    cameraStatus.textContent =
+        "Memutar video. Frame pertama agak lama karena model sedang dimuat.";
+    cameraLoop();
+});
+
+cameraVideo.addEventListener("ended", function () {
+    if (cameraRunning) {
+        stopCamera();
+        cameraStatus.textContent = "Video selesai. Hitungan terakhir tetap ditampilkan.";
+    }
+});

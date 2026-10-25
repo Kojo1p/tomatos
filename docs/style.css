@@ -358,3 +358,47 @@ button:disabled {
     width: 36px;
     text-align: right;
 }
+.count-panel {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid #dfe8df;
+}
+
+.count-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+}
+
+.count-line {
+    position: absolute;
+    background: #ffd60a;
+    box-shadow: 0 0 6px #000000aa;
+}
+
+.count-line-h {
+    left: 0;
+    right: 0;
+    height: 3px;
+}
+
+.count-line-v {
+    top: 0;
+    bottom: 0;
+    width: 3px;
+}
+
+.count-result {
+    margin-top: 14px;
+}
+
+select {
+    width: 100%;
+    padding: 8px;
+    margin-top: 8px;
+    border: 1px solid #b7cbb9;
+    border-radius: 8px;
+    background: white;
+    font-size: 14px;
+}

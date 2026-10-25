@@ -63,6 +63,41 @@
             <button id="saveFrameButton" class="secondary-btn" disabled>Simpan Hasil Frame Ini</button>
             <p id="cameraStatus">Kamera belum aktif.</p>
             <p id="cameraCounts"></p>
+            <label class="slider-row">
+                Atau putar file video (untuk uji penghitungan):
+                <input type="file" id="videoFileInput" accept="video/*">
+            </label>
+
+            <div class="count-panel">
+                <label class="count-toggle">
+                    <input type="checkbox" id="countToggle">
+                    Aktifkan penghitungan lewat garis
+                </label>
+
+                <div id="countControls" class="hidden">
+                    <label class="slider-row">
+                        Posisi garis: <strong><span id="lineText">50</span>%</strong>
+                        <input type="range" id="lineSlider" min="5" max="95" value="50">
+                    </label>
+
+                    <label class="slider-row">
+                        Arah gerak tomat:
+                        <select id="axisSelect">
+                            <option value="y">Atas ↔ bawah (garis horizontal)</option>
+                            <option value="x">Kiri ↔ kanan (garis vertikal)</option>
+                        </select>
+                    </label>
+
+                    <div class="count-result">
+                        <span class="summary-value" id="countTotal">0</span>
+                        <span class="summary-label">tomat dihitung</span>
+                        <p id="countDetail">healthy: 0 · reject: 0 · ripe: 0 · unripe: 0</p>
+                    </div>
+
+                    <button id="resetCountButton" class="secondary-btn">Reset Hitungan</button>
+                    <button id="saveCountButton" class="secondary-btn">Simpan Hitungan ke Riwayat</button>
+                </div>
+            </div>
         </section>
 
         <section class="upload-card tab-panel hidden" id="tab-dashboard">
